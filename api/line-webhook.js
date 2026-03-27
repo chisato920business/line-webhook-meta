@@ -27,7 +27,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
               data: [
                 {
-                  event_name: "QualifiedLineRegistration_Shoyu",
+                  event_name: "QualifiedLineRegistration_shoyu",
                   event_time: Math.floor(Date.now() / 1000),
                   action_source: "website",
                   user_data: {
