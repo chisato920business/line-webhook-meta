@@ -17,6 +17,21 @@ module.exports = async function handler(req, res) {
         console.log("LINE追加された！");
         console.log("userId:", userId);
 
+        const payload = {
+          data: [
+            {
+              event_name: "QualifiedLineRegistration_shoyu",
+              event_time: Math.floor(Date.now() / 1000),
+              action_source: "website",
+              user_data: {
+                external_id: [userId]
+              }
+            }
+          ]
+        };
+
+        console.log("CAPI payload:", JSON.stringify(payload, null, 2));
+
         const response = await fetch(
           `https://graph.facebook.com/v18.0/${PIXEL_ID}/events?access_token=${ACCESS_TOKEN}`,
           {
@@ -24,23 +39,12 @@ module.exports = async function handler(req, res) {
             headers: {
               "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-              data: [
-                {
-                  event_name: "QualifiedLineRegistration_shoyu",
-                  event_time: Math.floor(Date.now() / 1000),
-                  action_source: "website",
-                  user_data: {
-                    external_id: [userId]
-                  }
-                }
-              ]
-            })
+            body: JSON.stringify(payload)
           }
         );
 
         const result = await response.json();
-        console.log("Meta response:", JSON.stringify(result));
+        console.log("Meta response:", JSON.stringify(result, null, 2));
       }
     }
 
