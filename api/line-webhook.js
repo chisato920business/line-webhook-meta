@@ -1,16 +1,23 @@
 module.exports = async function handler(req, res) {
+  console.log("🔥 webhook hit");
+
   if (req.method !== "POST") {
+    console.log("⛔ Method Not Allowed:", req.method);
     return res.status(405).send("Method Not Allowed");
   }
 
   try {
     const body = req.body;
+    console.log("📦 req.body:", JSON.stringify(body, null, 2));
+
     const events = body.events || [];
 
     const PIXEL_ID = process.env.META_PIXEL_ID;
     const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 
     for (const event of events) {
+      console.log("📩 event.type:", event.type);
+
       if (event.type === "follow") {
         const userId = event.source?.userId;
 
