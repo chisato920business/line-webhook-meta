@@ -1,6 +1,16 @@
 const { createClient } = require("redis");
 
 module.exports = async function handler(req, res) {
+  // CORSヘッダー
+  res.setHeader("Access-Control-Allow-Origin", "https://magic-barrel.com");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // プリフライト対応
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).send("Method Not Allowed");
   }
