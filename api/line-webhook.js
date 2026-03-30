@@ -21,17 +21,18 @@ module.exports = async function handler(req, res) {
       console.log("userId:", userId);
 
       const payload = {
-        data: [
-          {
-            event_name: "QualifiedLineRegistration_shoyu",
-            event_time: Math.floor(Date.now() / 1000),
-            action_source: "website",
-            user_data: {
-              external_id: [userId]
-            }
-          }
-        ]
-      };
+  data: [
+    {
+      event_name: "QualifiedLineRegistration_shoyu",
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: "website",
+      user_data: {
+        external_id: [userId],
+        fbc: "fb.1.1234567890.TESTCLICKID"
+      }
+    }
+  ]
+};
 
       console.log("CAPI payload:", JSON.stringify(payload, null, 2));
 
