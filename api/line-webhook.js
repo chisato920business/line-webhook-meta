@@ -1,12 +1,21 @@
+const { createClient } = require("redis");
+
 module.exports = async function handler(req, res) {
   console.log("🔥 webhook hit");
 
   if (req.method !== "POST") {
-    console.log("⛔ Method Not Allowed:", req.method);
     return res.status(405).send("Method Not Allowed");
   }
 
+  const client = createClient({
+    url: process.env.REDIS_URL
+  });
+
+  client.on("error", (err) => console.error("Redis Client Error", err));
+
   try {
+    await client.connect();
+
     const body = req.body;
     console.log("📦 req.body:", JSON.stringify(body, null, 2));
 
@@ -18,19 +27,45 @@ module.exports = async function handler(req, res) {
     for (const event of events) {
       console.log("📩 event.type:", event.type);
 
+      if (event.type !== "follow") {
+        continue;
+      }
+
       const userId = event.source?.userId;
       console.log("👤 userId:", userId);
 
-      // 🔥 強制テスト用payload（ここが重要）
+      // Redisから直近のsessionを取得
+      const keys = await client.keys("session:*");
+
+      let latestSession = null;
+      let latestCreatedAt = 0;
+
+      for (const key of keys) {
+        const raw = await client.get(key);
+        if (!raw) continue;
+
+        const data = JSON.parse(raw);
+        if (data.created_at && data.created_at > latestCreatedAt) {
+          latestCreatedAt = data.created_at;
+          latestSession = data;
+        }
+      }
+
+      console.log("🧩 latest session:", JSON.stringify(latestSession, null, 2));
+
       const payload = {
         data: [
           {
-            event_name: "QualifiedLineRegistration_shoyu",
+            event_name:
+              latestSession?.product === "shoyu"
+                ? "QualifiedLineRegistration_shoyu"
+                : "QualifiedLineRegistration",
             event_time: Math.floor(Date.now() / 1000),
             action_source: "website",
             user_data: {
               external_id: [userId],
-              fbc: "TEST_FBC_123"
+              ...(latestSession?.fbc ? { fbc: latestSession.fbc } : {}),
+              ...(latestSession?.fbp ? { fbp: latestSession.fbp } : {})
             }
           }
         ]
@@ -53,9 +88,13 @@ module.exports = async function handler(req, res) {
       console.log("📊 Meta response:", JSON.stringify(result, null, 2));
     }
 
+    await client.disconnect();
     return res.status(200).send("OK");
   } catch (error) {
     console.error("❌ Error:", error);
+    try {
+      await client.disconnect();
+    } catch (_) {}
     return res.status(500).send("Error");
   }
 };
