@@ -1,8 +1,9 @@
+const store = {}; // 仮のメモリ（本番はDB推奨）
+
 module.exports = async function handler(req, res) {
   console.log("🔥 webhook hit");
 
   if (req.method !== "POST") {
-    console.log("⛔ Method Not Allowed:", req.method);
     return res.status(405).send("Method Not Allowed");
   }
 
@@ -24,6 +25,10 @@ module.exports = async function handler(req, res) {
         console.log("LINE追加された！");
         console.log("userId:", userId);
 
+        // 🔥 ここでfbc取得（仮：直近データ）
+        const fbc = store["latest_fbc"];
+        const fbp = store["latest_fbp"];
+
         const payload = {
           data: [
             {
@@ -31,7 +36,9 @@ module.exports = async function handler(req, res) {
               event_time: Math.floor(Date.now() / 1000),
               action_source: "website",
               user_data: {
-                external_id: [userId]
+                external_id: [userId],
+                fbc: fbc,
+                fbp: fbp
               }
             }
           ]
