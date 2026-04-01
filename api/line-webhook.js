@@ -89,8 +89,6 @@ const result = await response.json();
 console.log("📊 Meta response status:", response.status);
 console.log("📊 Meta response body:", JSON.stringify(result, null, 2));
 
-      const result = await response.json();
-      console.log("📊 Meta response:", JSON.stringify(result, null, 2));
     }
 
     await client.disconnect();
