@@ -74,15 +74,20 @@ module.exports = async function handler(req, res) {
       console.log("🔥 CAPI payload:", JSON.stringify(payload, null, 2));
 
       const response = await fetch(
-        `https://graph.facebook.com/v18.0/${PIXEL_ID}/events?access_token=${ACCESS_TOKEN}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        }
-      );
+  `https://graph.facebook.com/v18.0/${PIXEL_ID}/events?access_token=${ACCESS_TOKEN}`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  }
+);
+
+const result = await response.json();
+
+console.log("📊 Meta response status:", response.status);
+console.log("📊 Meta response body:", JSON.stringify(result, null, 2));
 
       const result = await response.json();
       console.log("📊 Meta response:", JSON.stringify(result, null, 2));
