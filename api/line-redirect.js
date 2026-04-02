@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
 
     await client.disconnect();
 
-    return res.redirect("https://lin.ee/XXXXXXXX"); // ← 本物のLINE URLに差し替え
+    return res.redirect("https://lin.ee/QqQxcDd"); // ← 本物のLINE URLに差し替え
   } catch (error) {
     console.error("❌ line-redirect error:", error);
     try {
