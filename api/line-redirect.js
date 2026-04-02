@@ -1,6 +1,14 @@
 const { createClient } = require("redis");
 
 module.exports = async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "https://magic-barrel.com");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   const client = createClient({
     url: process.env.REDIS_URL
   });
@@ -32,7 +40,7 @@ module.exports = async function handler(req, res) {
 
     await client.disconnect();
 
-    return res.redirect("https://lin.ee/QqQxcDd"); // ← 本物のLINE URLに差し替え
+    return res.redirect("https://lin.ee/QqQxcDd");
   } catch (error) {
     console.error("❌ line-redirect error:", error);
     try {
