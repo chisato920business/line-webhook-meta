@@ -53,71 +53,103 @@ module.exports = async function handler(req, res) {
         continue;
       }
 
-      // Redisから直近のsessionを取得
-      const keys = await client.keys("session:*");
-      console.log("🗂 session keys count:", keys.length);
+      // ① LINEクリック直後の候補だけを見る
+      const pendingKeys = await client.keys("pending_line_session:*");
+      console.log("🗂 pending_line_session keys count:", pendingKeys.length);
 
-      let latestSession = null;
-      let latestCreatedAt = 0;
-      let latestKey = null;
+      let latestPending = null;
+      let latestPendingCreatedAt = 0;
+      let latestPendingKey = null;
 
-      for (const key of keys) {
+      for (const key of pendingKeys) {
         const raw = await client.get(key);
         if (!raw) {
-          console.log("⚠️ empty raw for key:", key);
+          console.log("⚠️ empty raw for pending key:", key);
           continue;
         }
 
         try {
           const data = JSON.parse(raw);
 
-          console.log("🔎 checking session key:", key);
-          console.log("🔎 session created_at:", data.created_at || null);
-          console.log("🔎 session product:", data.product || null);
-          console.log("🔎 session fbc exists:", !!data.fbc);
-          console.log("🔎 session fbp exists:", !!data.fbp);
+          console.log("🔎 checking pending key:", key);
+          console.log("🔎 pending created_at:", data.created_at || null);
+          console.log("🔎 pending session_id:", data.session_id || null);
+          console.log("🔎 pending product:", data.product || null);
 
-          if (data.created_at && data.created_at > latestCreatedAt) {
-            latestCreatedAt = data.created_at;
-            latestSession = data;
-            latestKey = key;
+          if (data.created_at && data.created_at > latestPendingCreatedAt) {
+            latestPendingCreatedAt = data.created_at;
+            latestPending = data;
+            latestPendingKey = key;
           }
         } catch (parseError) {
-          console.log("❌ JSON parse error for key:", key);
+          console.log("❌ JSON parse error for pending key:", key);
           console.log("❌ raw value:", raw);
           console.log("❌ parse error:", parseError);
         }
       }
 
-      console.log("🧩 selected latest key:", latestKey);
-      console.log("🧩 latest session:", JSON.stringify(latestSession, null, 2));
-      console.log("🔥 latestSession.product:", latestSession?.product || null);
-      console.log("🔥 latestSession.fbc:", latestSession?.fbc || null);
-      console.log("🔥 latestSession.fbp:", latestSession?.fbp || null);
-      console.log("🔥 latestSession.created_at:", latestSession?.created_at || null);
+      console.log("🧩 selected pending key:", latestPendingKey);
+      console.log("🧩 latest pending session:", JSON.stringify(latestPending, null, 2));
 
-      if (!latestSession) {
-        console.log("⚠️ latestSession not found, skip sending to Meta");
+      if (!latestPending?.session_id) {
+        console.log("⚠️ latestPending.session_id not found, skip sending to Meta");
+        continue;
+      }
+
+      // ② そのsession_idに紐づく本体sessionを読む
+      const sessionKey = `session:${latestPending.session_id}`;
+      const sessionRaw = await client.get(sessionKey);
+
+      if (!sessionRaw) {
+        console.log("⚠️ sessionRaw not found for key:", sessionKey);
+        continue;
+      }
+
+      let selectedSession = null;
+
+      try {
+        selectedSession = JSON.parse(sessionRaw);
+      } catch (parseError) {
+        console.log("❌ JSON parse error for session key:", sessionKey);
+        console.log("❌ raw session value:", sessionRaw);
+        console.log("❌ parse error:", parseError);
+        continue;
+      }
+
+      console.log("🧩 selected session key:", sessionKey);
+      console.log("🧩 selected session:", JSON.stringify(selectedSession, null, 2));
+      console.log("🔥 selectedSession.product:", selectedSession?.product || null);
+      console.log("🔥 selectedSession.fbc:", selectedSession?.fbc || null);
+      console.log("🔥 selectedSession.fbp:", selectedSession?.fbp || null);
+      console.log("🔥 selectedSession.created_at:", selectedSession?.created_at || null);
+
+      if (!selectedSession) {
+        console.log("⚠️ selectedSession not found, skip sending to Meta");
         continue;
       }
 
       const eventName =
-        latestSession?.product === "shoyu"
+        selectedSession?.product === "shoyu"
           ? "QualifiedLineRegistration_shoyu"
           : "QualifiedLineRegistration";
 
       console.log("🎯 eventName:", eventName);
+
+      // 重複排除しやすくするためevent_id追加
+      const eventId = `line_follow_${userId}_${latestPending.session_id}`;
 
       const payload = {
         data: [
           {
             event_name: eventName,
             event_time: Math.floor(Date.now() / 1000),
+            event_id: eventId,
             action_source: "website",
+            event_source_url: "https://magic-barrel.com/4",
             user_data: {
               external_id: [userId],
-              ...(latestSession?.fbc ? { fbc: latestSession.fbc } : {}),
-              ...(latestSession?.fbp ? { fbp: latestSession.fbp } : {})
+              ...(selectedSession?.fbc ? { fbc: selectedSession.fbc } : {}),
+              ...(selectedSession?.fbp ? { fbp: selectedSession.fbp } : {})
             }
           }
         ]
@@ -141,6 +173,12 @@ module.exports = async function handler(req, res) {
       console.log("📊 Meta response status:", response.status);
       console.log("📊 Meta response ok:", response.ok);
       console.log("📊 Meta response body:", JSON.stringify(result, null, 2));
+
+      // ③ 送信後、使ったpendingを削除
+      if (latestPendingKey) {
+        await client.del(latestPendingKey);
+        console.log("🗑 deleted pending key:", latestPendingKey);
+      }
     }
 
     await client.disconnect();
