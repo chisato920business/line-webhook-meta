@@ -9,6 +9,10 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
+  if (req.method !== "GET") {
+    return res.status(405).send("Method Not Allowed");
+  }
+
   const client = createClient({
     url: process.env.REDIS_URL
   });
@@ -19,6 +23,7 @@ module.exports = async function handler(req, res) {
     await client.connect();
 
     const sessionId = req.query.session_id;
+    const redirectTo = "https://lin.ee/QqQxcDd";
 
     if (!sessionId) {
       await client.disconnect();
@@ -27,7 +32,9 @@ module.exports = async function handler(req, res) {
 
     const payload = {
       session_id: sessionId,
-      linked_at: Date.now()
+      product: "shoyu",
+      redirect_to: redirectTo,
+      created_at: Date.now()
     };
 
     await client.set(
@@ -36,11 +43,11 @@ module.exports = async function handler(req, res) {
       { EX: 60 * 30 }
     );
 
-    console.log("✅ saved pending_line_session:", payload);
+    console.log("✅ saved pending_line_session:", JSON.stringify(payload, null, 2));
 
     await client.disconnect();
 
-    return res.redirect("https://lin.ee/QqQxcDd");
+    return res.redirect(redirectTo);
   } catch (error) {
     console.error("❌ line-redirect error:", error);
     try {
